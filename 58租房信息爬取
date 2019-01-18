@@ -33,7 +33,15 @@ def getheaders():
     UserAgent = numpy.random.choice(user_agent_list)
     headers = {'User-Agent': UserAgent}
     return headers
-    # 特殊字体解码
+# 构建ip池(未用)
+def get_id():
+    ip_dz = []
+    for i in range(1,21):
+        url = "https://www.xicidaili.com/nn/{}".format(i)
+        response = requests.get(url, headers = getheaders())
+        ip_dz.append(re.findall(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', response.text))
+ 
+# 特殊字体解码
 '''
 # 静态直接用FontCreator查看制作对应字典。
 # 字体转码保存为ttf格式
