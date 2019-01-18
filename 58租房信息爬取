@@ -1,0 +1,99 @@
+# 导入库
+import time
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import base64
+from fontTools.ttLib import TTFont
+import re
+import io
+import numpy
+# 构建多个请求头库，随机抽取
+def getheaders():
+    user_agent_list = [ \
+        "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1" \
+        "Mozilla/5.0 (X11; CrOS i686 2268.111.0) AppleWebKit/536.11 (KHTML, like Gecko) Chrome/20.0.1132.57 Safari/536.11", \
+        "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6", \
+        "Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1090.0 Safari/536.6", \
+        "Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/19.77.34.5 Safari/537.1", \
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.9 Safari/536.5", \
+        "Mozilla/5.0 (Windows NT 6.0) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.36 Safari/536.5", \
+        "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1063.0 Safari/536.3", \
+        "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1063.0 Safari/536.3", \
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_0) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1063.0 Safari/536.3", \
+        "Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1062.0 Safari/536.3", \
+        "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1062.0 Safari/536.3", \
+        "Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.1 Safari/536.3", \
+        "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.1 Safari/536.3", \
+        "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.1 Safari/536.3", \
+        "Mozilla/5.0 (Windows NT 6.2) AppleWebKit/536.3 (KHTML, like Gecko) Chrome/19.0.1061.0 Safari/536.3", \
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.24 (KHTML, like Gecko) Chrome/19.0.1055.1 Safari/535.24", \
+        "Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/535.24 (KHTML, like Gecko) Chrome/19.0.1055.1 Safari/535.24"
+    ]
+    UserAgent = numpy.random.choice(user_agent_list)
+    headers = {'User-Agent': UserAgent}
+    return headers
+    # 特殊字体解码
+'''
+# 静态直接用FontCreator查看制作对应字典。
+# 字体转码保存为ttf格式
+with open(r'F:\ShengCCi\S_CC\爬虫\58.ttf','wb') as f:
+    f.write(b)
+# 动态就需要xml随时更新
+# 字体打开并保存为xml格式
+font = TTFont(r'F:\ShengCCi\S_CC\爬虫\58.ttf')
+font.saveXML(r'F:\ShengCCi\S_CC\爬虫\58.xml')
+'''
+def font_code(response):
+    # 从爬下来的页面中获得base64编码源码
+    base64_str = re.search(r'base64,(.*?)\'\)',response.text).group(1)
+    # 将源码用base64解码
+    b = base64.b64decode(base64_str)
+    # 用TTFont将编码转为xml字体编码
+    font = TTFont(io.BytesIO(b))
+    # 打开字体中的cmap对应表
+    bestcmap = font['cmap'].getBestCmap()
+    # 创建新的字体对应表
+    newmap = dict()
+    for key in bestcmap.keys():
+        value = int(re.search(r'(\d+)', bestcmap[key]).group(1)) - 1
+        # 十进制转化为十六进制
+        key = hex(key)
+        newmap[key] = value
+    response = response.text
+    for key,value in newmap.items():
+        key_ = key.replace('0x','&#x') + ';'
+        if key_ in response:
+            response = response.replace(key_,str(value))
+    return response
+def add_data(url):
+    headers = getheaders()
+    response = requests.get(url = url, headers = headers, timeout = 20)
+    response = font_code(response)
+    res = BeautifulSoup(response)
+    Renting_house["租房标题"].append(res.find_all('h1', 'c_333 f20 strongbox')[0].text)
+    Renting_house["租房价格"].append(res.find_all('b', 'f36 strongbox')[0].text)
+    Renting_house["付款方式"].append(res.find_all('span', 'c_333')[0].text)
+    Renting_house["租房方式"].append(res.select('.f14 > li > span')[1].text.replace(' ', ''))
+    Renting_house["房屋类型"].append(res.select('.f14 > li > span')[3].text.replace(' ', ''))
+    Renting_house["朝向露层"].append(res.select('.f14 > li > span')[5].text.replace(' ', ''))
+    Renting_house["所在小区"].append(res.find_all('a', 'c_333 ah')[0].text)
+    Renting_house["详细地址"].append(res.find_all('span', 'dz')[0].text.strip())
+Renting_house = {}
+Renting_house["租房标题"] = []
+Renting_house["租房价格"] = []
+Renting_house["付款方式"] = []
+Renting_house["租房方式"] = []
+Renting_house["房屋类型"] = []
+Renting_house["朝向露层"] = []
+Renting_house["所在小区"] = []
+Renting_house["详细地址"] = []
+for url in res.find_all('a', 'strongbox'):
+    try:
+        add_data("http:" + url["href"])
+    except:
+        print("失败")
+    else:
+        print("成功")
+
+    
